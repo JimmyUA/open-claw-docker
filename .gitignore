@@ -1,0 +1,41 @@
+# Git ignore patterns for OpenClaw Docker deployment
+
+# Environment files with secrets
+.env
+.env.local
+.env.*.local
+
+# Docker generated files
+docker-compose.extra.yml
+
+# Node modules (if running locally)
+node_modules/
+
+# Build artifacts
+dist/
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Playwright
+.playwright/
+
+# Test outputs
+test-results/
+playwright-report/

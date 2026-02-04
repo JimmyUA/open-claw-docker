@@ -1,0 +1,173 @@
+{
+  "$schema": "https://raw.githubusercontent.com/openclaw/openclaw/main/schemas/openclaw.schema.json",
+  "gateway": {
+    "mode": "local",
+    "bind": "lan",
+    "port": 18789
+  },
+  "agents": {
+    "list": [
+      {
+        "id": "main",
+        "name": "Main Assistant",
+        "description": "Primary AI assistant with full capabilities",
+        "model": "claude-sonnet-4-20250514",
+        "workspace": "~/.openclaw/workspace",
+        "sandbox": {
+          "mode": "non-main",
+          "scope": "agent",
+          "workspaceAccess": "rw",
+          "docker": {
+            "image": "openclaw-sandbox:bookworm-slim",
+            "workdir": "/workspace",
+            "readOnlyRoot": false,
+            "network": "none",
+            "user": "1000:1000",
+            "memory": "1g",
+            "memorySwap": "2g",
+            "cpus": 1,
+            "pidsLimit": 256,
+            "env": {
+              "LANG": "C.UTF-8"
+            }
+          },
+          "browser": {
+            "enabled": true,
+            "image": "openclaw-sandbox-browser:bookworm-slim",
+            "headless": false
+          },
+          "prune": {
+            "idleHours": 24,
+            "maxAgeDays": 7
+          }
+        }
+      }
+    ],
+    "defaults": {
+      "model": "claude-sonnet-4-20250514",
+      "sandbox": {
+        "mode": "non-main",
+        "scope": "agent",
+        "workspaceAccess": "none",
+        "workspaceRoot": "~/.openclaw/sandboxes",
+        "docker": {
+          "image": "openclaw-sandbox:bookworm-slim",
+          "workdir": "/workspace",
+          "readOnlyRoot": true,
+          "tmpfs": ["/tmp", "/var/tmp", "/run"],
+          "network": "none",
+          "user": "1000:1000",
+          "capDrop": ["ALL"],
+          "memory": "1g",
+          "memorySwap": "2g",
+          "cpus": 1,
+          "pidsLimit": 256,
+          "env": {
+            "LANG": "C.UTF-8"
+          }
+        },
+        "browser": {
+          "enabled": true,
+          "image": "openclaw-sandbox-browser:bookworm-slim",
+          "headless": false
+        },
+        "prune": {
+          "idleHours": 24,
+          "maxAgeDays": 7
+        }
+      }
+    }
+  },
+  "tools": {
+    "browser": {
+      "enabled": true,
+      "headless": false
+    },
+    "canvas": {
+      "enabled": true
+    },
+    "cron": {
+      "enabled": true
+    },
+    "exec": {
+      "enabled": true
+    },
+    "sandbox": {
+      "tools": {
+        "allow": [
+          "exec",
+          "process",
+          "read",
+          "write",
+          "edit",
+          "sessions_list",
+          "sessions_history",
+          "sessions_send",
+          "sessions_spawn",
+          "session_status"
+        ],
+        "deny": [
+          "gateway",
+          "discord",
+          "cron"
+        ]
+      }
+    }
+  },
+  "channels": {
+    "telegram": {
+      "enabled": false,
+      "token": "",
+      "dm": {
+        "policy": "pairing",
+        "allowFrom": []
+      }
+    },
+    "discord": {
+      "enabled": false,
+      "token": "",
+      "dm": {
+        "policy": "pairing",
+        "allowFrom": []
+      }
+    },
+    "slack": {
+      "enabled": false,
+      "token": "",
+      "dm": {
+        "policy": "pairing",
+        "allowFrom": []
+      }
+    },
+    "whatsapp": {
+      "enabled": false
+    },
+    "signal": {
+      "enabled": false
+    },
+    "googlechat": {
+      "enabled": false
+    },
+    "webchat": {
+      "enabled": true
+    }
+  },
+  "models": {
+    "anthropic": {
+      "enabled": true,
+      "models": ["claude-sonnet-4-20250514", "claude-3-5-sonnet-20241022", "claude-3-opus-20240229"]
+    },
+    "openai": {
+      "enabled": true,
+      "models": ["gpt-4o", "gpt-4-turbo", "gpt-4"]
+    },
+    "google": {
+      "enabled": true,
+      "models": ["gemini-1.5-pro-latest", "gemini-1.5-flash-latest"]
+    }
+  },
+  "security": {
+    "dmPolicy": "pairing",
+    "requireApproval": true
+  }
+}
