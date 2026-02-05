@@ -188,8 +188,31 @@ jobs:
 
       - name: Configure Docker on VM
         run: |
+          # First, ensure Docker is installed and running
           gcloud compute ssh ${{ env.INSTANCE_NAME }} --zone=${{ secrets.GCP_ZONE }} --command="
+            # Install Docker if not present
+            if ! command -v docker &> /dev/null; then
+              echo 'Installing Docker...'
+              sudo apt-get update
+              sudo apt-get install -y docker.io docker-compose-v2
+              sudo systemctl enable docker
+              sudo systemctl start docker
+            fi
+            
+            # Wait for Docker to be ready
+            while ! sudo docker info &> /dev/null; do
+              echo 'Waiting for Docker...'
+              sleep 5
+            done
+            echo 'Docker is ready!'
+            
+            # Configure Docker for Artifact Registry
             sudo gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
+            
+            # Create directories
+            sudo mkdir -p /opt/openclaw/config
+            sudo mkdir -p /home/openclaw/.openclaw/workspace
+            sudo chown -R 1000:1000 /home/openclaw/.openclaw
           "
 
       - name: Deploy application
