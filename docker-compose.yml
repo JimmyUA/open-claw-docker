@@ -55,17 +55,19 @@ services:
       # Canvas host port (for iOS/Android nodes)
       # Uncomment if needed:
       # - "18793:18793"
-    command:
-      - node
-      - dist/index.js
-      - gateway
-      - --bind
-      - ${OPENCLAW_GATEWAY_BIND:-lan}
-      - --port
-      - "18789"
-      - --allow-unconfigured
+    command: # command:
+
+    #   - node
+    #   - dist/index.js
+    #   - gateway
+    #   - --bind
+    #   - ${OPENCLAW_GATEWAY_BIND:-lan}
+    #   - --port
+    #   - "18789"
+    #   - --allow-unconfigured
+    # command: ["node", "dist/index.js", "gateway", "--allow-unconfigured"]
     healthcheck:
-      test: [ "CMD", "node", "dist/index.js", "health", "--token", "${OPENCLAW_GATEWAY_TOKEN}" ]
+      test: [ "CMD", "curl", "-f", "http://localhost:18789/" ]
       interval: 30s
       timeout: 10s
       retries: 3
