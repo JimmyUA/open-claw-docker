@@ -1,60 +1,16 @@
-# OpenClaw Agent Sandbox Image
-# Minimal, secure container for agent code execution
-#
-# Features:
-# - Debian Bookworm Slim base
-# - Essential development tools
-# - Read-only root filesystem compatible
-# - No network access by default
-# - Resource constrained
-
 FROM debian:bookworm-slim
 
-# Set environment
-ENV LANG=C.UTF-8 \
-    HOME=/workspace \
-    PATH="/usr/local/bin:/usr/bin:/bin"
+ENV DEBIAN_FRONTEND=noninteractive
 
-# Install minimal tools for code execution
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    # Shells
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
     bash \
-    # Core utilities
-    coreutils \
-    findutils \
-    grep \
-    sed \
-    gawk \
-    # Dev tools
-    git \
+    ca-certificates \
     curl \
-    wget \
+    git \
     jq \
-    # Text editors
-    nano \
-    vim-tiny \
-    # Build tools
-    make \
-    # Python
     python3 \
-    python3-pip \
-    python3-venv \
-    # Node.js (via nodesource would add size, use system)
-    nodejs \
-    npm \
-    # Clean up
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
+    ripgrep \
+  && rm -rf /var/lib/apt/lists/*
 
-# Create workspace directory
-RUN mkdir -p /workspace /agent \
-    && chown -R 1000:1000 /workspace /agent
-
-# Set working directory
-WORKDIR /workspace
-
-# Switch to non-root user
-USER 1000:1000
-
-# Default command
-CMD ["/bin/bash"]
+CMD ["sleep", "infinity"]

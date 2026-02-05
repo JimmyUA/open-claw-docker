@@ -1,160 +1,43 @@
-# OpenClaw Docker Compose Configuration
-# Full-featured setup for GCP Compute Engine deployment
-#
-# Services:
-# - openclaw-gateway: Main gateway service
-# - openclaw-cli: CLI for management commands
-#
-# Usage:
-#   docker compose build
-#   docker compose up -d openclaw-gateway
-#   docker compose run --rm openclaw-cli onboard
-
 services:
-  # Main OpenClaw Gateway Service
   openclaw-gateway:
     image: ${OPENCLAW_IMAGE:-openclaw:local}
-    container_name: openclaw-gateway
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        EXTRA_APT_PACKAGES: ${OPENCLAW_DOCKER_APT_PACKAGES:-}
-        INSTALL_PLAYWRIGHT_BROWSERS: "true"
-    restart: unless-stopped
-    env_file:
-      - .env
     environment:
-      - HOME=/home/node
-      - NODE_ENV=production
-      - TERM=xterm-256color
-      - LANG=C.UTF-8
-      - OPENCLAW_GATEWAY_BIND=${OPENCLAW_GATEWAY_BIND:-lan}
-      - OPENCLAW_GATEWAY_PORT=${OPENCLAW_GATEWAY_PORT:-18789}
-      - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN}
-      - GOG_KEYRING_PASSWORD=${GOG_KEYRING_PASSWORD}
-      - XDG_CONFIG_HOME=/home/node/.openclaw
-      - PLAYWRIGHT_BROWSERS_PATH=/home/node/.cache/ms-playwright
-      - PATH=/home/linuxbrew/.linuxbrew/bin:/home/node/.bun/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-      # Optional: Model provider API keys
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      HOME: /home/node
+      TERM: xterm-256color
+      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN}
+      CLAUDE_AI_SESSION_KEY: ${CLAUDE_AI_SESSION_KEY}
+      CLAUDE_WEB_SESSION_KEY: ${CLAUDE_WEB_SESSION_KEY}
+      CLAUDE_WEB_COOKIE: ${CLAUDE_WEB_COOKIE}
     volumes:
-      # Persistent configuration and workspace
-      - ${OPENCLAW_CONFIG_DIR:-~/.openclaw}:/home/node/.openclaw
-      - ${OPENCLAW_WORKSPACE_DIR:-~/.openclaw/workspace}:/home/node/.openclaw/workspace
-      # Persist Playwright browser downloads
-      - playwright-browsers:/home/node/.cache/ms-playwright
-      # Docker socket for sandbox containers (optional)
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ${OPENCLAW_CONFIG_DIR}:/home/node/.openclaw
+      - ${OPENCLAW_WORKSPACE_DIR}:/home/node/.openclaw/workspace
     ports:
-      # Gateway WebSocket port - use SSH tunnel for secure access
-      # Remove 127.0.0.1: prefix to expose publicly (NOT recommended without firewall)
-      - "127.0.0.1:${OPENCLAW_GATEWAY_PORT:-18789}:18789"
-      # Canvas host port (for iOS/Android nodes)
-      # Uncomment if needed:
-      # - "18793:18793"
-    command: # command:
-
-    #   - node
-    #   - dist/index.js
-    #   - gateway
-    #   - --bind
-    #   - ${OPENCLAW_GATEWAY_BIND:-lan}
-    #   - --port
-    #   - "18789"
-    #   - --allow-unconfigured
-    # command: ["node", "dist/index.js", "gateway", "--allow-unconfigured"]
+      - "${OPENCLAW_GATEWAY_PORT:-18789}:18789"
+      - "${OPENCLAW_BRIDGE_PORT:-18790}:18790"
+    init: true
+    restart: unless-stopped
+    command: [ "node", "dist/index.js", "gateway", "--bind", "${OPENCLAW_GATEWAY_BIND:-lan}", "--port", "18789" ]
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:18789/" ]
+      test: [ "CMD", "node", "dist/index.js", "health", "--token", "${OPENCLAW_GATEWAY_TOKEN}" ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 15s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
 
-  # CLI Service for management commands
   openclaw-cli:
     image: ${OPENCLAW_IMAGE:-openclaw:local}
-    container_name: openclaw-cli
-    build:
-      context: .
-      dockerfile: Dockerfile
-    profiles:
-      - cli
-    env_file:
-      - .env
     environment:
-      - HOME=/home/node
-      - NODE_ENV=production
-      - TERM=xterm-256color
-      - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN}
-      - GOG_KEYRING_PASSWORD=${GOG_KEYRING_PASSWORD}
-      - XDG_CONFIG_HOME=/home/node/.openclaw
-      - PATH=/home/linuxbrew/.linuxbrew/bin:/home/node/.bun/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      HOME: /home/node
+      TERM: xterm-256color
+      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN}
+      BROWSER: echo
+      CLAUDE_AI_SESSION_KEY: ${CLAUDE_AI_SESSION_KEY}
+      CLAUDE_WEB_SESSION_KEY: ${CLAUDE_WEB_SESSION_KEY}
+      CLAUDE_WEB_COOKIE: ${CLAUDE_WEB_COOKIE}
     volumes:
-      - ${OPENCLAW_CONFIG_DIR:-~/.openclaw}:/home/node/.openclaw
-      - ${OPENCLAW_WORKSPACE_DIR:-~/.openclaw/workspace}:/home/node/.openclaw/workspace
-    entrypoint: [ "node", "dist/index.js" ]
+      - ${OPENCLAW_CONFIG_DIR}:/home/node/.openclaw
+      - ${OPENCLAW_WORKSPACE_DIR}:/home/node/.openclaw/workspace
     stdin_open: true
     tty: true
-
-  # Agent Sandbox Service (for sandboxed code execution)
-  openclaw-sandbox:
-    image: openclaw-sandbox:bookworm-slim
-    container_name: openclaw-sandbox
-    build:
-      context: .
-      dockerfile: Dockerfile.sandbox
-    profiles:
-      - sandbox
-    read_only: true
-    tmpfs:
-      - /tmp:size=256M
-      - /var/tmp:size=128M
-      - /run:size=64M
-    cap_drop:
-      - ALL
-    security_opt:
-      - no-new-privileges:true
-    pids_limit: 256
-    mem_limit: 1g
-    memswap_limit: 2g
-    cpus: 1
-    network_mode: none
-    user: "1000:1000"
-
-  # Browser Sandbox Service (for web automation in sandbox)
-  openclaw-sandbox-browser:
-    image: openclaw-sandbox-browser:bookworm-slim
-    container_name: openclaw-sandbox-browser
-    build:
-      context: .
-      dockerfile: Dockerfile.sandbox-browser
-    profiles:
-      - sandbox-browser
-    environment:
-      - DISPLAY=:99
-    tmpfs:
-      - /tmp:size=512M
-    cap_drop:
-      - ALL
-    cap_add:
-      - SYS_ADMIN # Required for Chromium sandbox
-    security_opt:
-      - no-new-privileges:true
-    pids_limit: 512
-    mem_limit: 2g
-    memswap_limit: 4g
-    cpus: 2
-    shm_size: 256m
-    user: "1000:1000"
-
-volumes:
-  playwright-browsers:
-    name: openclaw-playwright-browsers
+    init: true
+    entrypoint: [ "node", "dist/index.js" ]
