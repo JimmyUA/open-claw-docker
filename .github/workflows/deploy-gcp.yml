@@ -194,13 +194,16 @@ jobs:
 
       - name: Deploy application
         run: |
-          # Copy docker-compose and config files
-          gcloud compute scp docker-compose.yml ${{ env.INSTANCE_NAME }}:/opt/openclaw/ --zone=${{ secrets.GCP_ZONE }}
-          gcloud compute scp config/openclaw.json ${{ env.INSTANCE_NAME }}:/opt/openclaw/config/ --zone=${{ secrets.GCP_ZONE }} --recurse
+          # Copy files to home directory first (avoid permission issues)
+          gcloud compute scp docker-compose.yml ${{ env.INSTANCE_NAME }}:~/docker-compose.yml --zone=${{ secrets.GCP_ZONE }}
+          gcloud compute scp config/openclaw.json ${{ env.INSTANCE_NAME }}:~/openclaw.json --zone=${{ secrets.GCP_ZONE }}
           
-          # Create .env file on VM
+          # Move files to /opt/openclaw with sudo and create .env
           gcloud compute ssh ${{ env.INSTANCE_NAME }} --zone=${{ secrets.GCP_ZONE }} --command="
-            cat > /opt/openclaw/.env << 'EOF'
+            sudo mkdir -p /opt/openclaw/config
+            sudo mv ~/docker-compose.yml /opt/openclaw/
+            sudo mv ~/openclaw.json /opt/openclaw/config/
+            sudo tee /opt/openclaw/.env > /dev/null << 'EOF'
           OPENCLAW_IMAGE=${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/openclaw/${{ env.IMAGE_NAME }}:latest
           OPENCLAW_GATEWAY_TOKEN=${{ secrets.OPENCLAW_GATEWAY_TOKEN }}
           OPENCLAW_GATEWAY_BIND=lan
