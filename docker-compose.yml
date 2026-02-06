@@ -1,6 +1,6 @@
 services:
   openclaw-gateway:
-    image: ${OPENCLAW_IMAGE:-openclaw:local}
+    image: ${OPENCLAW_IMAGE:-alpine/openclaw:latest}
     environment:
       HOME: /home/node
       TERM: xterm-256color
@@ -25,7 +25,7 @@ services:
       start_period: 15s
 
   openclaw-cli:
-    image: ${OPENCLAW_IMAGE:-openclaw:local}
+    image: ${OPENCLAW_IMAGE:-alpine/openclaw:latest}
     environment:
       HOME: /home/node
       TERM: xterm-256color

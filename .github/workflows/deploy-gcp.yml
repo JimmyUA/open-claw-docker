@@ -1,5 +1,6 @@
 # OpenClaw GCP Deployment Workflow
 # Deploys OpenClaw to Google Cloud Platform Compute Engine
+# Uses the official alpine/openclaw Docker image from Docker Hub
 #
 # Triggers:
 # - Push to main branch
@@ -10,7 +11,6 @@
 # - GCP_SA_KEY: Service account JSON key (base64 encoded)
 # - GCP_ZONE: Compute Engine zone (e.g., us-central1-a)
 # - OPENCLAW_GATEWAY_TOKEN: Gateway security token
-# - GOG_KEYRING_PASSWORD: Keyring password
 
 name: Deploy to GCP
 
@@ -32,108 +32,23 @@ on:
         options:
           - production
           - staging
-      force_rebuild:
-        description: 'Force rebuild Docker image'
-        required: false
-        default: false
-        type: boolean
+      openclaw_image_tag:
+        description: 'OpenClaw image tag (from alpine/openclaw)'
+        required: true
+        default: 'latest'
+        type: string
 
 env:
   INSTANCE_NAME: openclaw-gateway
   MACHINE_TYPE: e2-medium
   DISK_SIZE: 30
-  IMAGE_NAME: openclaw
+  # Use official pre-built image from Docker Hub
+  OPENCLAW_IMAGE: alpine/openclaw:${{ github.event.inputs.openclaw_image_tag || 'latest' }}
 
 jobs:
-  build-and-push:
-    name: Build and Push Docker Image
-    runs-on: ubuntu-latest
-    outputs:
-      image_tag: ${{ steps.meta.outputs.tags }}
-    
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Authenticate to Google Cloud
-        id: auth
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-        with:
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-
-      - name: Configure Docker for Artifact Registry
-        run: |
-          gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
-
-      - name: Create Artifact Registry repository (if not exists)
-        continue-on-error: true
-        run: |
-          gcloud artifacts repositories create openclaw \
-            --repository-format=docker \
-            --location=${{ secrets.GCP_REGION }} \
-            --description="OpenClaw Docker images" \
-            --quiet
-
-      - name: Extract metadata for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: |
-            ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/openclaw/${{ env.IMAGE_NAME }}
-          tags: |
-            type=sha,prefix=
-            type=ref,event=branch
-            type=raw,value=latest,enable={{is_default_branch}}
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          build-args: |
-            INSTALL_PLAYWRIGHT_BROWSERS=true
-
-      - name: Build and push sandbox image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile.sandbox
-          push: true
-          tags: |
-            ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/openclaw/openclaw-sandbox:latest
-            ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/openclaw/openclaw-sandbox:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Build and push browser sandbox image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile.sandbox-browser
-          push: true
-          tags: |
-            ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/openclaw/openclaw-sandbox-browser:latest
-            ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/openclaw/openclaw-sandbox-browser:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
   deploy:
     name: Deploy to Compute Engine
     runs-on: ubuntu-latest
-    needs: build-and-push
     environment: ${{ github.event.inputs.environment || 'production' }}
     
     steps:
@@ -206,9 +121,6 @@ jobs:
             done
             echo 'Docker is ready!'
             
-            # Configure Docker for Artifact Registry
-            sudo gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
-            
             # Create directories
             sudo mkdir -p /opt/openclaw/config
             sudo mkdir -p /home/openclaw/.openclaw/workspace
@@ -227,7 +139,7 @@ jobs:
             sudo mv ~/docker-compose.yml /opt/openclaw/
             sudo mv ~/openclaw.json /opt/openclaw/config/
             sudo tee /opt/openclaw/.env > /dev/null << 'EOF'
-          OPENCLAW_IMAGE=${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/openclaw/${{ env.IMAGE_NAME }}:latest
+          OPENCLAW_IMAGE=${{ env.OPENCLAW_IMAGE }}
           OPENCLAW_GATEWAY_TOKEN=${{ secrets.OPENCLAW_GATEWAY_TOKEN }}
           OPENCLAW_GATEWAY_BIND=lan
           OPENCLAW_GATEWAY_PORT=18789
