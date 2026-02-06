@@ -1,4 +1,4 @@
-import { zodToJsonSchema } from "zod-to-json-schema";
+import zodToJsonSchema from "zod-to-json-schema";
 import type { ZodTypeAny } from "zod";
 import type { ChannelConfigSchema } from "./types.plugin.js";
 
